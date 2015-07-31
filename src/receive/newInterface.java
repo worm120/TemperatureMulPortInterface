@@ -15,9 +15,9 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import javax.swing.*;
 
-import com.opration.CRC;
-import com.opration.byteandstring;
-import com.opration.dataset;
+
+import com.operation.byteandstring;
+import com.operation.dataset;
 
 
 public class newInterface{
@@ -368,7 +368,7 @@ public class newInterface{
 		loginFrame.setSize(400, 400);
 		loginFrame.setVisible(true);
 		//loginFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		loginFrame.setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
+		loginFrame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
 		loginFrame.pack();
 		loginFrame.show();
 		

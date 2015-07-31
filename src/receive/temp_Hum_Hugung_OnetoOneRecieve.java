@@ -21,11 +21,11 @@ import java.util.Date;
 import javax.swing.JOptionPane;
 import javax.swing.JTextArea;
 
-import com.opration.CRC;
-import com.opration.byteandstring;
-import com.opration.compareData;
-import com.opration.dataset;
-import com.opration.picOpration;
+import com.operation.CRC;
+import com.operation.byteandstring;
+import com.operation.compareData;
+import com.operation.dataset;
+import com.operation.picOpration;
 
 
 public class temp_Hum_Hugung_OnetoOneRecieve extends Thread{
@@ -47,6 +47,8 @@ public class temp_Hum_Hugung_OnetoOneRecieve extends Thread{
 	compareData cd=new compareData();
 	picOpration po=new picOpration();
 	
+	String dateHg_old;//判断是否已过了一天
+	int flagHg=0;//判断函数是否第一次执行也即是否第一次运行程序统计弧光
 
 	
 	public temp_Hum_Hugung_OnetoOneRecieve(JTextArea showJTextArea,JTextArea showSendMsg,int port,int flag) throws SQLException
@@ -384,10 +386,10 @@ public class temp_Hum_Hugung_OnetoOneRecieve extends Thread{
 										
 										//System.out.println("kdddk");
 										byte[] returnData=dp.getData();
-										int returnLenght=dp.getLength();
+										int returnLength=dp.getLength();
 										
 										String showpString="";
-										for(int i=0;i<returnLenght;i++)
+										for(int i=0;i<returnLength;i++)
 									    {
 									    	String dataString=Integer.toHexString(returnData[i]&0xff);
 									    	if(dataString.length()<2)
@@ -401,14 +403,14 @@ public class temp_Hum_Hugung_OnetoOneRecieve extends Thread{
 										po.writeLog("弧光数据包："+showpString);
 										//System.out.println("弧光数据包："+showpString);
 										
-										if(returnLenght==40)
+										if(returnLength==40)
 										{
 											
 											byte productType03_08=returnData[1];
 											if(productType03_08==0x04)
 											{
 							
-												crc.update(returnData,0,(returnLenght-2));
+												crc.update(returnData,0,(returnLength-2));
 										        byte test[]=crc.getCrcBytes();
 												crc.reset();
 												if(test[0]!=returnData[38]||test[1]!=returnData[39])
@@ -418,7 +420,7 @@ public class temp_Hum_Hugung_OnetoOneRecieve extends Thread{
 												}
 												else
 												{
-													receiveHg(returnData,returnLenght,Sample_ID);
+													receiveHg(returnData,returnLength,Sample_ID);
 												}
 											}
 										}
@@ -475,10 +477,17 @@ public class temp_Hum_Hugung_OnetoOneRecieve extends Thread{
 		ResultSet rs=null;
 		String device_Address="";
 		device_Address=bs.bytesToHexString(returnData[0]);
-		int hg_low=0;
+		int hg_count=0;
 		int hg_high=0;
-		hg_low=(returnData[3]&0xFF);
-		hg_high=(returnData[5]&0xFF);
+		int hg_low=0;   
+
+		SimpleDateFormat dfDate = new SimpleDateFormat("yyyy-MM-dd");
+		hg_count=(returnData[3]&0xFF);    //总次数		
+		hg_high=(returnData[5]&0xFF);   //强弧次数				             
+		hg_low=hg_count-hg_high;        //弱弧次数
+		
+
+		
 		int hg_recent1_time=0;
 		int hg_recent1_date=0;
 		String hg_1_date="";
@@ -486,7 +495,7 @@ public class temp_Hum_Hugung_OnetoOneRecieve extends Thread{
 		hg_recent1_date = ((returnData[8]<<8) & 0xFF00) | (returnData[9] & 0xFF);
 		Date d = new Date();
 		SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-		hg_1_date=df.format(new Date(d.getTime() - hg_recent1_date*1000));
+		hg_1_date=df.format(new Date(d.getTime() - hg_recent1_date*1000));    
 		int hg_recent2_time=0;
 		int hg_recent2_date=0;
 		String hg_2_date="";
@@ -521,33 +530,77 @@ public class temp_Hum_Hugung_OnetoOneRecieve extends Thread{
 		int hg_recent7_date=0;
 		String hg_7_date="";
 		
+		
 		hg_recent7_time = (returnData[31] & 0xFF);
 		hg_recent7_date = ((returnData[32]<<8) & 0xFF00) | (returnData[33] & 0xFF);
 		hg_7_date=df.format(new Date(d.getTime() - hg_recent7_date*1000));
-		String insertHgNum_low="insert into AlarmLogArc(Sample_ID,AlarmNum,AlarmType,Odate) values('"+Sample_ID+"','"+hg_low+"','1','"+df.format(new Date())+"')";
-		String insertHgNum_high="insert into AlarmLogArc(Sample_ID,AlarmNum,AlarmType,Odate) values('"+Sample_ID+"','"+hg_high+"','0','"+df.format(new Date())+"')";
-		String insertRecentHg="insert into recentHg(Sample_ID,hg_recent1_time,hg_recent1_date,hg_recent2_time,hg_recent2_date,hg_recent3_time,hg_recent3_date,hg_recent4_time,hg_recent4_date,hg_recent5_time,hg_recent5_date,hg_recent6_time,hg_recent6_date,hg_recent7_time,hg_recent7_date) values('"+Sample_ID+"',"+hg_recent1_time+",'"+hg_1_date+"',"+hg_recent2_time+",'"+hg_2_date+"',"+hg_recent3_time+",'"+hg_3_date+"',"+hg_recent4_time+",'"+hg_4_date+"',"+hg_recent5_time+",'"+hg_5_date+"',"+hg_recent6_time+",'"+hg_6_date+"',"+hg_recent7_time+",'"+hg_7_date+"')";
-		String updateRecentHg="update recentHg set hg_recent1_time="+hg_recent1_time+",hg_recent1_date='"+hg_1_date+"',hg_recent2_time="+hg_recent2_time+",hg_recent2_date='"+hg_2_date+"',hg_recent3_time="+hg_recent3_time+",hg_recent3_date='"+hg_3_date+"',hg_recent4_time="+hg_recent4_time+",hg_recent4_date='"+hg_4_date+"',hg_recent5_time="+hg_recent5_time+",hg_recent5_date='"+hg_5_date+"',hg_recent6_time="+hg_recent6_time+",hg_recent6_date='"+hg_6_date+"',hg_recent7_time="+hg_recent7_time+",hg_recent7_date='"+hg_7_date+"' where Sample_ID='"+Sample_ID+"'";
+//		String insertHgNum_count="insert into AlarmLogArc(Sample_ID,AlarmNum,AlarmType,Odate) values('"
+//								+Sample_ID+"','"+hg_count+"','0','"+df.format(new Date())+"')";
+//		String insertHgNum_high="insert into AlarmLogArc(Sample_ID,AlarmNum,AlarmType,Odate) values('"
+//							+Sample_ID+"','"+hg_high+"','1','"+df.format(new Date())+"')";
+	
+		String insertRecentHg="insert into recentHg(Sample_ID,hg_recent1_time,hg_recent1_date,"
+							+"hg_recent2_time,hg_recent2_date,hg_recent3_time,hg_recent3_date,"
+							+"hg_recent4_time,hg_recent4_date,hg_recent5_time,hg_recent5_date,"
+							+"hg_recent6_time,hg_recent6_date,hg_recent7_time,hg_recent7_date) "
+							+"values('"+Sample_ID+"',"+hg_recent1_time+",'"+hg_1_date+"',"
+							+hg_recent2_time+",'"+hg_2_date+"',"+hg_recent3_time+",'"
+							+hg_3_date+"',"+hg_recent4_time+",'"+hg_4_date+"',"
+							+hg_recent5_time+",'"+hg_5_date+"',"+hg_recent6_time+",'"+hg_6_date
+							+"',"+hg_recent7_time+",'"+hg_7_date+"')";
+		String updateRecentHg="update recentHg set hg_recent1_time="+hg_recent1_time
+							+",hg_recent1_date='"+hg_1_date+"',hg_recent2_time="+hg_recent2_time
+							+",hg_recent2_date='"+hg_2_date+"',hg_recent3_time="+hg_recent3_time
+							+",hg_recent3_date='"+hg_3_date+"',hg_recent4_time="+hg_recent4_time
+							+",hg_recent4_date='"+hg_4_date+"',hg_recent5_time="+hg_recent5_time
+							+",hg_recent5_date='"+hg_5_date+"',hg_recent6_time="+hg_recent6_time
+							+",hg_recent6_date='"+hg_6_date+"',hg_recent7_time="+hg_recent7_time
+							+",hg_recent7_date='"+hg_7_date+"' where Sample_ID='"+Sample_ID+"'";
 		String checkRecentHg="select count(*) from recentHg where Sample_ID='"+Sample_ID+"'";
-		int f1=ds.update(insertHgNum_low);
-		int f2=ds.update(insertHgNum_high);
-		int count=0;
-		rs=ds.select(checkRecentHg);
-		if(rs!=null)
+//		String getRecentHg= "select hg_recent1_time,hg_recent1_date from recentHg where Sample_ID = '"+Sample_ID+"'";
+		
+		
+//		int f1=ds.update(insertHgNum_count);
+//		int f2=ds.update(insertHgNum_high);
+		//更新最近弧光
+		int countRecentHg=0;
+		if(hg_recent1_time!=0)
 		{
-			while(rs.next())
+			rs=ds.select(checkRecentHg);
+			if(rs!=null)
 			{
-				count=rs.getInt(1);
+				while(rs.next())
+				{
+					countRecentHg=rs.getInt(1);
+				}
+			}
+			
+			if(countRecentHg==0)
+			{
+				ds.update(insertRecentHg);
+			}
+			else
+			{
+//				rs=ds.select(getRecentHg);
+//				if(rs!=null)
+//				{
+//					if(rs.next())
+//					{
+//						int recentHgTimeOld1 = rs.getInt(1);
+//						if(recentHgTimeOld1 != hg_recent1_time)ds.update(updateRecentHg);
+//					}
+//				}
+				if(hg_count!=0)
+				{
+					ds.update(updateRecentHg);
+				}
+				
 			}
 		}
-		if(count==0)
-		{
-			int f3=ds.update(insertRecentHg);
-		}
-		else
-		{
-			int f3=ds.update(updateRecentHg);
-		}
+
+		
+		updateHgcishu(Sample_ID,hg_high,hg_low,hg_count);
+	
 		rs.close();
 		System.gc();
 	}
@@ -630,6 +683,67 @@ public class temp_Hum_Hugung_OnetoOneRecieve extends Thread{
 		
 		ShowMessage(device_Address+"成功接收有效数据:"+failnum+" ;失败: "+(48-failnum));
 		System.gc();
+	}
+	
+	//更新弧光次数
+	//获取数据库中是否有当天的弧光次数
+	protected void updateHgcishu(String Sample_ID,int hg_high,int hg_low,int hg_count) throws SQLException
+	{
+		SimpleDateFormat dfDate = new SimpleDateFormat("yyyy-MM-dd");
+		String checkHgCount="select count(*) from Hgcishu where Datetime = CONVERT(varchar(100), GETDATE(), 23) and Sample_ID = '"
+								+Sample_ID+"'";
+		//向数据库中添加一条当天的弧光次数记录
+		String insertHgCount="insert into Hgcishu(Sample_ID,Qianghu,Ruohu,Total,Datetime) values('"
+						+Sample_ID+"',"+hg_high+","+hg_low+","+hg_count+",'"+dfDate.format(new Date())+"')";
+		//查询数据库中的弧光次数
+		String getHgCount="select Qianghu,Ruohu,Total from Hgcishu where Sample_ID = '"+ Sample_ID 
+							+"' and Datetime = CONVERT(varchar(100), GETDATE(), 23)";
+		//更新数据库中的弧光次数
+		String updateHgCount="update Hgcishu set Qianghu ="+hg_count+",Ruohu="+hg_high+",Total="
+							+hg_low+" where Sample_ID = '"+ Sample_ID 
+							+ "' and Datetime = CONVERT(varchar(100), GETDATE(), 23)";
+		if(flagHg==0)
+		{
+			dateHg_old=dfDate.format(new Date());
+			flagHg = 1;
+		}
+		if(hg_count!=0)
+		{
+			if(dateHg_old==dfDate.format(new Date()))
+			{						
+				int countHgCount = 0;
+				ResultSet rs =  null;
+				rs= ds.select(checkHgCount);//获取数据库中是否有当天的记录
+				if(rs!=null)
+				{
+					if(rs.next())
+						countHgCount = rs.getInt(1);
+				}
+				if(countHgCount == 1)//如果数据库中有当天的记录
+				{
+					rs = ds.select(getHgCount);
+					if(rs.next())
+					{
+						int hg_high_old = rs.getInt(1);
+						int hg_low_old = rs.getInt(2);
+						int hg_count_old = rs.getInt(3);
+						hg_high += hg_high_old;
+						hg_low += hg_low_old;
+						hg_count += hg_count_old;
+						ds.update(updateHgCount);
+					}				
+				}
+				else
+				{
+					ds.update(insertHgCount);
+				}
+				rs.close();
+			}
+			else
+			{
+				flagHg = 0;
+			}
+		}
 	}
 	
 	

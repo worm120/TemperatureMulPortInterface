@@ -14,10 +14,10 @@ import javax.imageio.ImageIO;
 import javax.swing.ImageIcon;
 import javax.swing.JTextArea;
 
-import com.opration.byteandstring;
-import com.opration.compareData;
-import com.opration.dataset;
-import com.opration.picOpration;
+
+import com.operation.compareData;
+import com.operation.dataset;
+import com.operation.picOpration;
 
 
 public class receiveImg2  extends Thread
