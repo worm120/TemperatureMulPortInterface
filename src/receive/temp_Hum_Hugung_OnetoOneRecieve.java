@@ -47,8 +47,8 @@ public class temp_Hum_Hugung_OnetoOneRecieve extends Thread{
 	compareData cd=new compareData();
 	picOpration po=new picOpration();
 	
-	String dateHg_old;//判断是否已过了一天
-	int flagHg=0;//判断函数是否第一次执行也即是否第一次运行程序统计弧光
+	//统计计数，确保弧光1分钟统计，而温度5分钟统计一次
+	int timeCount = 0;
 
 	
 	public temp_Hum_Hugung_OnetoOneRecieve(JTextArea showJTextArea,JTextArea showSendMsg,int port,int flag) throws SQLException
@@ -71,10 +71,31 @@ public class temp_Hum_Hugung_OnetoOneRecieve extends Thread{
 			}
 			rs.close();
 		}
+//		String getHGdeviceCount="select * from SampleAddress where Sample_IndexID is not null and Sample_AddressH is not null and Sample_AddressL is not null and   Sample_dataL='"+portText+"'";
+//		rs=ds.select(getHGdeviceCount);
+//		if(rs!=null){
+//			try {
+//				if(rs.next())
+//				{					
+//					int HgDeviceCount=rs.getInt(1);
+//					if(HgDeviceCount!=0){
+//						HgFlag = new int[HgDeviceCount+1];
+//						for(int i= 0;i<HgFlag.length;i++)
+//						{
+//							HgFlag[i]=0;//为每一台弧光设备添加一个标志位，该标志位被后面的弧光次数统计所用
+//						}
+//					}
+//				}
+//			} catch (SQLException e) {
+//				// TODO Auto-generated catch block
+//				e.printStackTrace();
+//			}
+//		}
 		rs=null;
 		ds.close();
 		
 	}
+	
 	public void ShowMessage(String msg)
 	{
 
@@ -87,6 +108,7 @@ public class temp_Hum_Hugung_OnetoOneRecieve extends Thread{
 			this.showMsg.setText(this.showMsg.getText()+"\r\n"+msg);
 		}
 	}
+	
 	public void ShowSendMessage(String msg)
 	{
 		
@@ -124,108 +146,119 @@ public class temp_Hum_Hugung_OnetoOneRecieve extends Thread{
 		ResultSet rs=null;
 		//获取所有的弧光采样点
 		String getHGdevice="select * from SampleAddress where Sample_IndexID is not null and Sample_AddressH is not null and Sample_AddressL is not null and   Sample_dataL='"+portText+"'";
+		
 		String Sample_ID="";
+
 		while(true)
 		{
-			try
-			{
-				rs=ds.select(getdevice);
-				if(rs!=null)
-				{
-					while(rs.next())
-					{  
-						//System.out.println("wendu start");
-						Device_Addr=rs.getString("Device_Addr");
-						Device_StartH=rs.getString("Device_StartH");
-						Device_StartL=rs.getString("Device_StartL");
-						Device_dataL=rs.getString("Device_dataL");
-						Device_Feature=rs.getString("Device_Feature");
-						
-						Device_IP=rs.getString("Device_IP");
-						Device_Port=rs.getString("Device_Port");
-						if(Device_Addr!=null&&Device_Addr.equals("null")==false&&Device_IP!=null&&Device_IP.equals("null")==false)
-						{//Device_Addr!=null&&Device_Addr.equals("null")==false&&
-							//ds=new DatagramSocket();
-							int length=0;
 
-							sendData[0]=byteandstring.hexStringTobytes(Device_Addr);
-							sendData[1]=byteandstring.hexStringTobytes(Device_Feature);
-							sendData[2]=bs.hexStringTobytes(Device_StartH);
-							sendData[3]=bs.hexStringTobytes(Device_StartL);
-							if(Device_dataL.length()>2)
-							{
-								byte[] le=new byte[2];
-								le=byteandstring.hexStringToBytes(Device_dataL);
-								sendData[4]=le[0];
-								sendData[5]=le[1];
-							}
-							else
-							{
-								sendData[4]=0x00;
-								sendData[5]=bs.hexStringTobytes(Device_dataL);
-							}
+			if(timeCount==5)
+			{	
+				timeCount = 0;
+				try
+				{
+					rs=ds.select(getdevice);
+					if(rs!=null)
+					{
+						while(rs.next())
+						{  
+							Device_Addr=rs.getString("Device_Addr");
+							Device_StartH=rs.getString("Device_StartH");
+							Device_StartL=rs.getString("Device_StartL");
+							Device_dataL=rs.getString("Device_dataL");
+							Device_Feature=rs.getString("Device_Feature");
 							
-							byte[] data= new byte[6];
-							for(int j=0;j<6;j++)
-							{
-								data[j]=sendData[j];
-								//System.out.print(Integer.toHexString(data[j]&0xFF)+" ");
-							}
-							crc.update(data,0,6);
-					        byte d[]=crc.getCrcBytes();
-					        sendData[6]=d[0];
-					        sendData[7]=d[1];
-							crc.reset();
-							
-							InetAddress address;
-							try {
-								address = InetAddress.getByName(Device_IP);
-								sendDp=new DatagramPacket(sendData, sendData.length, address,Integer.parseInt(Device_Port));
-							} catch (UnknownHostException e1) {
-								// TODO Auto-generated catch block
-								e1.printStackTrace();
-							}
-							
-							//ShowSendMessage("Thread <"+flag+"> 自动采集cmd: "+Device_IP+"<>"+Device_Port+"<>"+bs.bytesToHexString(sendData)+";");
-							po.writeLog("Thread <"+flag+"> 自动采集cmd: "+Device_IP+"<>"+Device_Port+"<>"+bs.bytesToHexString(sendData)+";");//写入接收日志
-					
-							try 
-							{
-								dsSocket.send(sendDp);
-								byte[] buf = new byte[400];
-								DatagramPacket dp = new DatagramPacket(buf,0,buf.length);
-								try
+							Device_IP=rs.getString("Device_IP");
+							Device_Port=rs.getString("Device_Port");
+							if(Device_Addr!=null&&Device_Addr.equals("null")==false&&Device_IP!=null&&Device_IP.equals("null")==false)
+							{//Device_Addr!=null&&Device_Addr.equals("null")==false&&
+								//ds=new DatagramSocket();
+								int length=0;
+	
+								sendData[0]=byteandstring.hexStringTobytes(Device_Addr);
+								sendData[1]=byteandstring.hexStringTobytes(Device_Feature);
+								sendData[2]=bs.hexStringTobytes(Device_StartH);
+								sendData[3]=bs.hexStringTobytes(Device_StartL);
+								if(Device_dataL.length()>2)
 								{
-									dsSocket.setSoTimeout(3000);
-									dsSocket.receive(dp);
-									
-									byte[] returnData=dp.getData();
-									int returnLenght=dp.getLength();
-									
-									String showpString="";
-									for(int i=0;i<returnLenght;i++)
-								    {
-								    	String dataString=Integer.toHexString(returnData[i]&0xff);
-								    	if(dataString.length()<2)
-								    	{
-								    		dataString="0"+dataString;
-								    	}
-								    	showpString=showpString.trim()+dataString;
-								    }
-									showpString=showpString+"\r\n";
-									ShowMessage("温度数据包："+showpString);
-									po.writeLog("温度数据包："+showpString);
-									
-									if(returnLenght>22)
+									byte[] le=new byte[2];
+									le=byteandstring.hexStringToBytes(Device_dataL);
+									sendData[4]=le[0];
+									sendData[5]=le[1];
+								}
+								else
+								{
+									sendData[4]=0x00;
+									sendData[5]=bs.hexStringTobytes(Device_dataL);
+								}
+								
+								byte[] data= new byte[6];
+								for(int j=0;j<6;j++)
+								{
+									data[j]=sendData[j];
+									//System.out.print(Integer.toHexString(data[j]&0xFF)+" ");
+								}
+								crc.update(data,0,6);
+						        byte d[]=crc.getCrcBytes();
+						        sendData[6]=d[0];
+						        sendData[7]=d[1];
+								crc.reset();
+								
+								InetAddress address;
+								try {
+									address = InetAddress.getByName(Device_IP);
+									sendDp=new DatagramPacket(sendData, sendData.length, address,Integer.parseInt(Device_Port));
+								} catch (UnknownHostException e1) {
+									// TODO Auto-generated catch block
+									e1.printStackTrace();
+								}
+								
+								//ShowSendMessage("Thread <"+flag+"> 自动采集cmd: "+Device_IP+"<>"+Device_Port+"<>"+bs.bytesToHexString(sendData)+";");
+								po.writeLog("Thread <"+flag+"> 自动采集cmd: "+Device_IP+"<>"+Device_Port+"<>"+bs.bytesToHexString(sendData)+";");//写入接收日志
+						
+								try 
+								{
+									dsSocket.send(sendDp);
+									byte[] buf = new byte[400];
+									DatagramPacket dp = new DatagramPacket(buf,0,buf.length);
+									try
 									{
-										String vid=Integer.toHexString(returnData[0]&0xff);
-										byte productType03_08=returnData[1];
-										if(productType03_08==0x03)
+										dsSocket.setSoTimeout(3000);
+										dsSocket.receive(dp);
+										
+										byte[] returnData=dp.getData();
+										int returnLenght=dp.getLength();
+										
+										String showpString="";
+										for(int i=0;i<returnLenght;i++)
+									    {
+									    	String dataString=Integer.toHexString(returnData[i]&0xff);
+									    	if(dataString.length()<2)
+									    	{
+									    		dataString="0"+dataString;
+									    	}
+									    	showpString=showpString.trim()+dataString;
+									    }
+										showpString=showpString+"\r\n";
+										ShowMessage("温度数据包："+showpString);
+										po.writeLog("温度数据包："+showpString);
+										
+										if(returnLenght>22)
 										{
-											byte productType=returnData[4];
-											if(returnLenght==59)
+											String vid=Integer.toHexString(returnData[0]&0xff);
+											byte productType03_08=returnData[1];
+											if(productType03_08==0x03)
 											{
-												receivePoor(returnData,returnLenght);
+												byte productType=returnData[4];
+												if(returnLenght==59)
+												{
+													receivePoor(returnData,returnLenght);
+												}
+												else
+												{
+													ShowMessage("该条返回数据的格式不对：长度不正确！");
+													po.writeLog("该条返回数据的格式不对：长度不正确！");
+												}
 											}
 											else
 											{
@@ -239,35 +272,32 @@ public class temp_Hum_Hugung_OnetoOneRecieve extends Thread{
 											po.writeLog("该条返回数据的格式不对：长度不正确！");
 										}
 									}
-									else
+									catch (IOException e2)
 									{
-										ShowMessage("该条返回数据的格式不对：长度不正确！");
-										po.writeLog("该条返回数据的格式不对：长度不正确！");
+										System.out.println("dddd");
+										e2.printStackTrace();
+										
 									}
-								}
-								catch (IOException e2)
-								{
-									System.out.println("dddd");
-									e2.printStackTrace();
 									
+									ShowSendMessage("Thread <"+flag+"> 自动采集cmd: "+Device_IP+"<>"+Device_Port+"<>"+bs.bytesToHexString(sendData)+";");
+									
+								} 
+								catch (IOException e) 
+								{
+									e.printStackTrace();
 								}
-								
-								ShowSendMessage("Thread <"+flag+"> 自动采集cmd: "+Device_IP+"<>"+Device_Port+"<>"+bs.bytesToHexString(sendData)+";");
-								
-							} 
-							catch (IOException e) 
-							{
-								e.printStackTrace();
 							}
+							
 						}
-						
+						rs.close();
 					}
-					rs.close();
+				} catch (SQLException e1) {
+					// TODO Auto-generated catch block
+					e1.printStackTrace();
 				}
-			} catch (SQLException e1) {
-				// TODO Auto-generated catch block
-				e1.printStackTrace();
 			}
+			timeCount++;
+			
 			System.gc();	
 			ds.close();
 
@@ -310,8 +340,7 @@ public class temp_Hum_Hugung_OnetoOneRecieve extends Thread{
 					if(rs!=null)
 					{
 						while(rs.next())
-						{
-							//System.out.println("huguang start");
+						{							
 							Sample_ID=rs.getString("Sample_ID");
 							Device_Addr=rs.getString("Sample_IndexID");
 							Device_dataL=rs.getString("Sample_AddressH");
@@ -463,7 +492,7 @@ public class temp_Hum_Hugung_OnetoOneRecieve extends Thread{
 			System.gc();
 			try 
 			{
-				Thread.sleep(300000);
+				Thread.sleep(60000);
 			} 
 			catch (InterruptedException e)
 			{
@@ -592,16 +621,17 @@ public class temp_Hum_Hugung_OnetoOneRecieve extends Thread{
 //				}
 				if(hg_count!=0)
 				{
+					
 					ds.update(updateRecentHg);
 				}
 				
 			}
 		}
 
-		
-		updateHgcishu(Sample_ID,hg_high,hg_low,hg_count);
-	
-		rs.close();
+//		System.out.println("step into updateHgcishu");
+		updateHgcishu(Sample_ID,hg_high,hg_low);
+//		System.out.println("step out updateHgcishu");
+		//rs.close();
 		System.gc();
 	}
 	
@@ -687,66 +717,62 @@ public class temp_Hum_Hugung_OnetoOneRecieve extends Thread{
 	
 	//更新弧光次数
 	//获取数据库中是否有当天的弧光次数
-	protected void updateHgcishu(String Sample_ID,int hg_high,int hg_low,int hg_count) throws SQLException
+	protected void updateHgcishu(String Sample_ID,int hg_high,int hg_low) throws SQLException
 	{
+		
+		int hg_count = hg_high+hg_low;
 		SimpleDateFormat dfDate = new SimpleDateFormat("yyyy-MM-dd");
 		String checkHgCount="select count(*) from Hgcishu where Datetime = CONVERT(varchar(100), GETDATE(), 23) and Sample_ID = '"
 								+Sample_ID+"'";
-		//向数据库中添加一条当天的弧光次数记录
-		String insertHgCount="insert into Hgcishu(Sample_ID,Qianghu,Ruohu,Total,Datetime) values('"
-						+Sample_ID+"',"+hg_high+","+hg_low+","+hg_count+",'"+dfDate.format(new Date())+"')";
+	
 		//查询数据库中的弧光次数
-		String getHgCount="select Qianghu,Ruohu,Total from Hgcishu where Sample_ID = '"+ Sample_ID 
+		String getHgCount="select Qianghu,Ruohu,Total,HgFlag from Hgcishu where Sample_ID = '"+ Sample_ID 
 							+"' and Datetime = CONVERT(varchar(100), GETDATE(), 23)";
-		//更新数据库中的弧光次数
-		String updateHgCount="update Hgcishu set Qianghu ="+hg_count+",Ruohu="+hg_high+",Total="
-							+hg_low+" where Sample_ID = '"+ Sample_ID 
-							+ "' and Datetime = CONVERT(varchar(100), GETDATE(), 23)";
-		if(flagHg==0)
+
+		//获取数据库中标志位
+//		String getFlag = "select HgFlag from Hgcishu where Sample_ID = '"+ Sample_ID 
+//				+"' and Datetime = CONVERT(varchar(100), GETDATE(), 23)";
+		ResultSet rs = null;
+		rs = ds.select(checkHgCount);
+		int count=0;
+		if(rs!=null)
 		{
-			dateHg_old=dfDate.format(new Date());
-			flagHg = 1;
+			if(rs.next())
+				count=rs.getInt(1);
 		}
-		if(hg_count!=0)
+		
+
+
+		if(count==0)
 		{
-			if(dateHg_old==dfDate.format(new Date()))
-			{						
-				int countHgCount = 0;
-				ResultSet rs =  null;
-				rs= ds.select(checkHgCount);//获取数据库中是否有当天的记录
-				if(rs!=null)
+			//向数据库中添加一条当天的弧光次数记录
+			String insertHgCount="insert into Hgcishu(Sample_ID,Qianghu,Ruohu,Total,Datetime) values('"
+							+Sample_ID+"',"+hg_high+","+hg_low+","+hg_count+",'"+dfDate.format(new Date())+"')";
+			ds.update(insertHgCount);
+
+		}else{
+			if(hg_count!=0){
+				rs = ds.select(getHgCount);
+				if(rs.next())
 				{
-					if(rs.next())
-						countHgCount = rs.getInt(1);
-				}
-				if(countHgCount == 1)//如果数据库中有当天的记录
-				{
-					rs = ds.select(getHgCount);
-					if(rs.next())
-					{
-						int hg_high_old = rs.getInt(1);
-						int hg_low_old = rs.getInt(2);
-						int hg_count_old = rs.getInt(3);
-						hg_high += hg_high_old;
-						hg_low += hg_low_old;
-						hg_count += hg_count_old;
-						ds.update(updateHgCount);
-					}				
-				}
-				else
-				{
-					ds.update(insertHgCount);
-				}
-				rs.close();
-			}
-			else
-			{
-				flagHg = 0;
+					int hg_high_old = rs.getInt(1);
+					int hg_low_old = rs.getInt(2);
+					int hg_count_old = rs.getInt(3);
+//					System.out.println(hg_count_old);
+//					System.out.println(hg_count);
+					hg_high += hg_high_old;
+					hg_low += hg_low_old;
+					hg_count += hg_count_old;
+//					System.out.println(hg_count);
+					//更新数据库中的弧光次数
+					String updateHgCount="update Hgcishu set Qianghu ="+hg_high+",Ruohu="+hg_low+",Total="
+										+hg_count+" where Sample_ID = '"+ Sample_ID 
+										+ "' and Datetime = CONVERT(varchar(100), GETDATE(), 23)";
+					ds.update(updateHgCount);
+				}	
 			}
 		}
-	}
-	
-	
+	}	
 }
 
 
