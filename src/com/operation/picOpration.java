@@ -14,6 +14,28 @@ public class picOpration
 {
   public static void main(String[] args) {}
   
+  public static boolean getImgQiaoan(String ip, String port,
+		String path, String imageName)
+  {
+	    boolean flag = false;
+	    Runtime rn = Runtime.getRuntime();
+	    Process p = null;
+	    try
+	    {
+	      String imgName = imageName;
+	      String exePath = path + "cutImg\\testsdk.exe";
+	      String cmd = exePath + " " + ip + " " + port + " " + imgName;
+	      p = rn.exec(cmd);
+	      p.waitFor();
+	      flag = true;
+	    }
+	    catch (Exception e)
+	    {
+	      return flag;
+	    }
+	    return flag;
+  }
+  
   public static boolean getImg(String ip, String port, String path, String imageName)
   {
     boolean flag = false;

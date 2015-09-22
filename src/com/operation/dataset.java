@@ -7,6 +7,7 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.sql.Types;
 
 public class dataset
 {
@@ -102,6 +103,8 @@ public class dataset
     }
   }
   
+
+  
   public void executeHum(float Tvalue, float Vvalue, float Hvalue, String nodeid)
   {
     int i = 0;
@@ -140,4 +143,25 @@ public class dataset
       ex.printStackTrace();
     }
   }
+  //将TemperatureHistory表更新到3H表中
+  public void executeUpdateTempHistory3H(){
+	  int i = 0;
+	    try
+	    {
+	      this.conn = getCon();
+	      CallableStatement c = this.conn.prepareCall("{call updateTemHistory3H(?)}");
+//	      c.registerOutParameter(1,Types.INTEGER);
+
+	      c.registerOutParameter(1,Types.INTEGER);//接收返回值，如果没有好像执行不正常，很快就返回
+	      c.setQueryTimeout(0);
+	      c.execute();
+
+//	      System.out.println(c.getInt(1));
+	    }
+	    catch (Exception ex)
+	    {
+	      ex.printStackTrace();
+	    }
+  }
+  
 }

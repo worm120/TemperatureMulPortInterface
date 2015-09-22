@@ -8,6 +8,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
+import java.util.Calendar;
 import java.util.Date;
 
 import javax.imageio.ImageIO;
@@ -33,6 +34,7 @@ public class receiveImg2  extends Thread
 	compareData cd=new compareData();
 	picOpration po=new picOpration();
 	
+	String station_name="";
 	
 	public static void main(String[] args) {
 		
@@ -117,6 +119,22 @@ public class receiveImg2  extends Thread
 			}
 			rs.close();
 		}
+		
+	    String get_station_name = "select Substation_Name from Substation";
+	    rs=ds.select(get_station_name);
+	    if(rs!=null)
+	    {
+	    	try {
+				if(rs.next())
+				{
+					station_name=rs.getString("Substation_Name");
+//					System.out.println(station_name);
+				}
+			} catch (SQLException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+	    }
 
 		ds.close();
 		if(this.picurl.equals(""))
@@ -151,10 +169,10 @@ public class receiveImg2  extends Thread
 			String nowTime=dff.format(dt);
 			String imgStartTime_current=dString+" "+imgStartTime;		
 			String imgEndTime_current=dString+" "+imgEndTime;
-			if(cd.compare_date(imgStartTime_current,imgEndTime_current)==0)
+			if(compareData.compare_date(imgStartTime_current,imgEndTime_current)==0)
 			{
 			}
-			else if(cd.compare_date(imgStartTime_current,nowTime)<1&&cd.compare_date(imgEndTime_current,nowTime)>-1)
+			else if(compareData.compare_date(imgStartTime_current,nowTime)<1&&cd.compare_date(imgEndTime_current,nowTime)>-1)
 			{
 				String imgpath=picurl+"photo";
 				String picid="";
@@ -181,7 +199,18 @@ public class receiveImg2  extends Thread
 								DateFormat format = new SimpleDateFormat("yyMMddHHmmss");  
 								imgpath=this.picurl+"photo\\"+picid+"_"+format.format(time)+".jpg";
 								String picname=picid+"_"+format.format(time)+".jpg";
-								boolean k=po.getImg(Sample_AddressH,Sample_AddressL,picurl,imgpath);
+					            boolean k;
+					            
+					            if(station_name.equalsIgnoreCase("大唐南京发电厂")||station_name.equals("大连恩泽变电所"))
+					            {
+					        	    k = picOpration.getImg(Sample_AddressH, Sample_AddressL, picurl, imgpath);
+					            }else
+					            {
+					            	//System.out.println("getinQiaoanPic");
+					        	    k = picOpration.getImgQiaoan(Sample_AddressH, Sample_AddressL, picurl, imgpath);
+					        	    //System.out.println(k);
+					        	   // System.out.println("getoutQiaoanPic");
+					            }
 								if(k)
 								{
 									picSQL(picid,picname,picurl);
@@ -206,16 +235,16 @@ public class receiveImg2  extends Thread
 				ds.close();
 				
 			}
-			else if(cd.compare_date(imgStartTime_current,nowTime)==1)
+			else if(compareData.compare_date(imgStartTime_current,nowTime)==1)
 			{
 			}
-			else if(cd.compare_date(imgEndTime_current,nowTime)==-1)
+			else if(compareData.compare_date(imgEndTime_current,nowTime)==-1)
 			{
 			}
 
 			try
 			{
-				Thread.sleep(this.picFrequence*1000*60*60);
+				Thread.sleep(this.picFrequence*1000*60*2);
 			}
 			catch (InterruptedException e) {
 				// TODO Auto-generated catch block
@@ -223,83 +252,6 @@ public class receiveImg2  extends Thread
 			}
 			
 		}
-
-	}
-	
-
-	public void picSQL2(String picid,String picname,String picurl) throws SQLException 
-	{
-		String getPath=picurl;
-		String imagepath=getPath+"photo\\"+picname;
-		int flag2=0;
-		
-    	File fileTC=new File(imagepath);
-    	if(fileTC.exists())
-    	{
-    		if(fileTC.length()>0)
-    		{
-    			flag2=1;
-    		}
-    	}
-    	
-    	if(flag2==1)
-    	{
-    		Date time=new Date();
-    		DateFormat format = new SimpleDateFormat("yyMMddHHmmss");  
-    		dataset ds=new dataset();
-    		ResultSet rs=null;
-    		String device_Address="";
-    		String sample_id="none";
-    		String photoid="";
-
-    		String get_sampleid="select Device_Address,SampleAddress.Sample_ID from SampleAddress,Sample where Sample.Sample_ID=SampleAddress.Sample_ID and Sample_Type='00' and Sample_IndexID='"+picid+"'";
-    		
-    		rs=ds.select(get_sampleid);
-    		try 
-    		{
-    			if(rs!=null)
-    			{
-    				while(rs.next())
-    				{
-    					//System.out.println("kkkk");
-    					sample_id=rs.getString(2);
-    					device_Address=rs.getString(1);
-    				}
-    			}
-    		} 
-    		catch (SQLException e) 
-    		{
-    			e.printStackTrace();
-    		}
-    		System.out.println("sample_id:"+sample_id);
-    		
-    		if(sample_id.equals("none")||sample_id==null)
-    		{
-    			showMsg("摄像头 "+picid+": 未设置采样点数据接口信息！");
-    		}
-    		else
-    		{
-    			String insertPic="insert into Photo(Sample_ID,Photo_Name,Photo_Location,Date) values('"+sample_id+"','"+picname+"','../images/photo/"+picname+"','"+time.toLocaleString()+"')";
-    			
-    			int k=ds.update(insertPic);
-    			if(k>0)
-    			{
-    				showMsg("图像存入数据库sucess！");
-    				
-    			}
-    			
-    		}
-    		
-    		try
-    		{
-    			rs.close();
-    		}
-    		catch (SQLException e) 
-    		{
-    			e.printStackTrace();
-    		}
-    		ds.close();
-    	}
 
 	}
 	
@@ -321,7 +273,8 @@ public class receiveImg2  extends Thread
     	if(flag2==1)
     	{
     		Date time=new Date();
-    		DateFormat format = new SimpleDateFormat("yyMMddHHmmss");  
+    		DateFormat format = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");  
+    		Calendar c=Calendar.getInstance();
     		dataset ds=new dataset();
     		ResultSet rs=null;
     		String device_Address="";
@@ -347,21 +300,23 @@ public class receiveImg2  extends Thread
     		{
     			e.printStackTrace();
     		}
-    		System.out.println("sample_id:"+sample_id);
+    		//System.out.println("sample_id:"+sample_id);
     		
-    		if(sample_id.equals("none")||sample_id==null)
+    		if(sample_id.equals("")||sample_id==null)
     		{
     			showMsg("摄像头 "+picid+": 未设置采样点数据接口信息！");
     		}
     		else
     		{
-    			String insertPic="insert into Photo(Sample_ID,Photo_Name,Photo_Location,Date) values('"+sample_id+"','"+picname+"','../images/photo/"+picname+"','"+time.toLocaleString()+"')";
+    			String insertPic="insert into Photo(Sample_ID,Photo_Name,Photo_Location,Date) values('"
+    								+sample_id+"','"+picname+"','../images/photo/"+picname+"','"
+    								+format.format(c.getTime())+"')";
     			
     			int k=ds.update(insertPic);
     			if(k>0)
     			{
     				showMsg("图像存入数据库sucess！");
-    				String getid="select Photo_Id from Photo where sample_id='"+sample_id+"' and Date='"+time.toLocaleString()+"'";
+    				String getid="select Photo_Id from Photo where sample_id='"+sample_id+"' and Date='"+format.format(c.getTime())+"'";
     				rs=ds.select(getid);
     				while (rs.next()) 
     				{

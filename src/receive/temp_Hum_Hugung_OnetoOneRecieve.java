@@ -17,6 +17,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
+import java.util.Calendar;
 import java.util.Date;
 import javax.swing.JOptionPane;
 import javax.swing.JTextArea;
@@ -47,6 +48,8 @@ public class temp_Hum_Hugung_OnetoOneRecieve extends Thread{
 	compareData cd=new compareData();
 	picOpration po=new picOpration();
 	
+	
+	Date currentDay;  //获取当前日期
 	//统计计数，确保弧光1分钟统计，而温度5分钟统计一次
 	int timeCount = 0;
 
@@ -59,6 +62,9 @@ public class temp_Hum_Hugung_OnetoOneRecieve extends Thread{
 		this.portText=port;
 		bs=new byteandstring();
 		
+		DateFormat df = new SimpleDateFormat("yyyy-MM-dd");
+		
+		currentDay = Calendar.getInstance().getTime();
 
 		String getP="select * from Interface";
 		ResultSet rs=ds.select(getP);
@@ -124,6 +130,13 @@ public class temp_Hum_Hugung_OnetoOneRecieve extends Thread{
 
 	public void run()
 	{	
+		//每天将前一天的temperatureHistory表中的数据更新到temperatureHistory3H中
+		if(!(new SimpleDateFormat("yyyy-MM-dd")).format(currentDay).
+				 	equals((new SimpleDateFormat("yyyy-MM-dd")).format(Calendar.getInstance().getTime())))
+		{
+			currentDay= Calendar.getInstance().getTime();
+			ds.executeUpdateTempHistory3H();
+		}
 		try 
 		{
 			dsSocket=new DatagramSocket(portText);
@@ -152,9 +165,6 @@ public class temp_Hum_Hugung_OnetoOneRecieve extends Thread{
 		while(true)
 		{
 
-			if(timeCount==5)
-			{	
-				timeCount = 0;
 				try
 				{
 					rs=ds.select(getdevice);
@@ -294,12 +304,12 @@ public class temp_Hum_Hugung_OnetoOneRecieve extends Thread{
 				} catch (SQLException e1) {
 					// TODO Auto-generated catch block
 					e1.printStackTrace();
+					ds.close();
 				}
-			}
-			timeCount++;
+			
 			
 			System.gc();	
-			ds.close();
+			
 
 			Device_Addr="";
 			Device_Feature="04";
